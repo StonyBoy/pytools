@@ -10,6 +10,7 @@ import os.path
 import argparse
 import sys
 from PIL import Image
+import random
 
 
 def rename_file(filename):
@@ -63,6 +64,12 @@ def link_to_file(fullpath, name):
     os.symlink(fullpath, linkpath)
 
 
+def select_random_image(filepath):
+    images = os.listdir(filepath)
+    choice = random.randrange(len(images))
+    return os.path.join(filepath, images[choice])
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('-i', dest='info', help='Show image information', action='store_true')
@@ -74,7 +81,8 @@ if __name__ == '__main__':
     parser.add_argument('-l', dest='lockfile', help='Link image to I3 lockfile', action='store_true')
     parser.add_argument('-w', dest='wallpaper', help='Link image to I3 wallpaper', action='store_true')
     parser.add_argument('-s', dest='login', help='Link image to lightdm login screen wallpaper', action='store_true')
-    parser.add_argument('filenames', help='Image files', nargs='*')
+    parser.add_argument('-r', dest='random', help='Select a random image from the specified path', action='store_true')
+    parser.add_argument('filenames', help='Image file or a path to images', nargs='*', metavar='path')
     args = parser.parse_args()
     if len(args.filenames):
         for filename in args.filenames:
@@ -82,6 +90,9 @@ if __name__ == '__main__':
             if args.info:
                 show_fileinfo(fullpath)
             elif args.png:
+                if args.random:
+                    fullpath = select_random_image(fullpath)
+                    print('Selected', fullpath)
                 newfullpath = scale_to_display_as_png(fullpath, (args.display_width, args.display_height), args.crop_percentage)
                 if args.lockfile:
                     link_to_file(newfullpath, 'i3lock.png')
