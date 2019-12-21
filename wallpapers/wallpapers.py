@@ -57,6 +57,7 @@ def scale_to_display_as_png(fullpath, displaysize, crop_percentage):
 
 
 def link_to_file(fullpath, name):
+    print(fullpath, name)
     image_folder = os.path.dirname(fullpath)
     linkpath = os.path.join(image_folder, name)
     if os.path.exists(linkpath):
@@ -65,7 +66,7 @@ def link_to_file(fullpath, name):
 
 
 def select_random_image(filepath):
-    images = os.listdir(filepath)
+    images = [p for p in os.listdir(filepath) if p.endswith('.jpg')]
     choice = random.randrange(len(images))
     return os.path.join(filepath, images[choice])
 
