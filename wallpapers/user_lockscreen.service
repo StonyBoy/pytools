@@ -1,7 +1,3 @@
-# Steen Hegelund
-# Time-Stamp: 2019-Dec-14 16:39
-# You can copy this to ~/.config/systemd/user
-#
 [Unit]
 Description=User Lockscreen Wallpaper Change Service
 

@@ -1,11 +1,11 @@
-# Steen Hegelund
-# Time-Stamp: 2019-Dec-14 16:39
-# You can copy this to ~/.config/systemd/user
-#
 [Unit]
-Description=User Lockscreen Wallpaper Change Service
+Description=User Lockscreen Wallpaper Change Timer
 
-[Service]
-Type=oneshot
-ExecStart=/home/steen/src/python/devtools/wallpapers/wallpapers.py -x 1920 -y 1200 -p -l -r /opt/wallpapers
+[Timer]
+OnBootSec=2m
+OnUnitActiveSec=24h
+Unit=user_lockscreen.service
+
+[Install]
+WantedBy=timers.target
 

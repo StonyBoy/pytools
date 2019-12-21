@@ -1,12 +1,11 @@
-# Steen Hegelund
-# Time-Stamp: 2019-Dec-14 16:39
-# You can copy this to ~/.config/systemd/user
-#
 [Unit]
-Description=Wallpaper Change service
+Description=Wallpaper Change Timer
 
-[Service]
-Type=oneshot
-ExecStart=/home/steen/src/python/devtools/wallpapers/wallpapers.py -x 1920 -y 1200 -p -w -r /opt/wallpapers
-ExecStartPost=feh --bg-fill /opt/wallpapers/i3wallpaper.jpg
+[Timer]
+OnBootSec=2m
+OnUnitActiveSec=2h
+Unit=wallpaper.service
+
+[Install]
+WantedBy=timers.target
 
