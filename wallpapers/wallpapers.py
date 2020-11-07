@@ -60,7 +60,7 @@ def link_to_file(fullpath, name):
     print(fullpath, name)
     image_folder = os.path.dirname(fullpath)
     linkpath = os.path.join(image_folder, name)
-    if os.path.exists(linkpath):
+    if os.path.lexists(linkpath):
         os.remove(linkpath)
     os.symlink(fullpath, linkpath)
 
