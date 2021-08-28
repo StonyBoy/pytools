@@ -13,6 +13,7 @@ Service Installation:
     - Check log: journalctl -xe --user -u netnextstatus.service
     - Check output update: ls -l  ~/.local/share/netnextstatus/status.csv
     - Check output content: less  ~/.local/share/netnextstatus/status.csv
+    - Run the service now: systemctl restart --user netnextstatus.service
 '''
 import os
 import os.path

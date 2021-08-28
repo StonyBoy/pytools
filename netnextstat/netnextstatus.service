@@ -3,5 +3,5 @@ Description=Net Next Status Storing Service
 
 [Service]
 Type=oneshot
-ExecStart=/home/steen/src/proj/devtools/netnextstat/netnextstat.py /home/steen/.local/share/netnextstatus/status.csv
+ExecStart=%h/src/proj/pytools/netnextstat/netnextstat.py %h/.local/share/netnextstatus/status.csv
 
