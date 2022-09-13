@@ -64,7 +64,7 @@ def create_datastore(filename):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('filename', help='Path to the datastore file', type=str, metavar='path', default='~/.local/share/netnextstat/data.csv')
+    parser.add_argument('filename', help='Path to the datastore file', type=str, metavar='path', default='~/.local/share/netnextstatus/status.csv')
     args = parser.parse_args()
     if args.filename:
         absfilename = os.path.expanduser(args.filename)
