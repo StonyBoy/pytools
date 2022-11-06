@@ -33,6 +33,11 @@
         <div class="col">
           Closed days
         </div>
+        {% if linux_versions %}
+        <div class="col">
+          In Linux Version
+        </div>
+        {% endif %}
       </div>
       {% for cycle in cycles %}
         {% if cycle.current %}
@@ -49,6 +54,11 @@
           <div class="col">
             {{ cycle.close.days }}
           </div>
+          {% if linux_versions %}
+          <div class="col">
+            {{ cycle.version }}
+          </div>
+          {% endif %}
         </div>
         {% else %}
         <div class="row bg-light">
@@ -64,6 +74,11 @@
           <div class="col">
             {{ cycle.close.days }}
           </div>
+          {% if linux_versions %}
+          <div class="col">
+            {{ cycle.version }}
+          </div>
+          {% endif %}
         </div>
         {% endif %}
       {% endfor %}
