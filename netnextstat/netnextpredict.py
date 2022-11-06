@@ -98,7 +98,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('-g', '--generate', help='Generate an HTML file with the prediction', action='store_true')
     parser.add_argument('-o', '--outdir', help='Output folder for generated files', type=str, default='.')
-    parser.add_argument('filename', help='Path to the datastore file', type=str, metavar='path',
+    parser.add_argument('filename', help='Path to the netnext datastore file', type=str, metavar='path',
                         default=statuspath)
     args = parser.parse_args()
     if args.filename:

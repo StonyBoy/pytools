@@ -1,0 +1,77 @@
+<!-- Steen Hegelund -->
+<!-- vim: set ts=2 sw=2 sts=2 tw=120 cc=120 et ft=html :-->
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>NetNext Futuroscope</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="/images/favicon.png">
+  </head>
+  <body>
+
+    <div class="container-fluid p-5 text-center bg-image" style="background-image: url('/images/background.jpg'); height: 10vh">
+      <h1>NetNext Futuroscope</h1>
+    </div>
+    <div class="container-fluid p-5 text-center">
+      <h2 class="lead">See the last NetNext cycles and get a prediction of when the next 3 cycles will open and close</h2>
+    </div>
+
+    <div class="container mt-5">
+      <div class="row bg-secondary text-light">
+        <div class="col">
+          Open date
+        </div>
+        <div class="col">
+          Open days
+        </div>
+        <div class="col">
+          Closing date
+        </div>
+        <div class="col">
+          Closed days
+        </div>
+      </div>
+      {% for cycle in cycles %}
+        {% if cycle.current %}
+        <div class="row bg-success text-light">
+          <div class="col">
+            {{ cycle.day1 }}
+          </div>
+          <div class="col">
+            {{ cycle.open.days }}
+          </div>
+          <div class="col">
+            {{ cycle.day2 }}
+          </div>
+          <div class="col">
+            {{ cycle.close.days }}
+          </div>
+        </div>
+        {% else %}
+        <div class="row bg-light">
+          <div class="col">
+            {{ cycle.day1 }}
+          </div>
+          <div class="col">
+            {{ cycle.open.days }}
+          </div>
+          <div class="col">
+            {{ cycle.day2 }}
+          </div>
+          <div class="col">
+            {{ cycle.close.days }}
+          </div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+    <footer class="fixed-bottom">
+      <div class="containerfluid">
+        <span class="bg-light text-center">Steen Hegelund - 6-Nov-2022</span>
+      </div>
+    </footer>
+  </body>
+</html>
