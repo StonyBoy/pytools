@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 '''
 Read the netnetstatus file and calculate statistics and predict the next cycle
+If a git repo is provided the Linux version will be added to the cycles
 
 Installation:
     pip --user install PyYAML
@@ -47,13 +48,9 @@ class NetNextCycle:
         return self.version == None
 
     def __str__(self):
-        return 'Open: {} to {}, {} days, Closed: {} to {}, {} days, {}'.format(self.day1,
-                                                                               self.day2 - datetime.timedelta(days=1),
-                                                                               self.open.days,
-                                                                               self.day2,
-                                                                               self.day3 - datetime.timedelta(days=1),
-                                                                               self.close.days,
-                                                                               self.version)
+        close = self.day2 - datetime.timedelta(days=1)
+        last = self.day3 - datetime.timedelta(days=1)
+        return f'Open: {self.day1} to {close}, {self.open.days} days, Closed: {self.day2} to {last}, {self.close.days} days, {self.version}'
 
 class PredictedNetNextCycle(NetNextCycle):
     def __init__(self, day1, open_days, closed_days):
@@ -89,7 +86,7 @@ class LinuxTag:
     def __str__(self):
         return f'{self.date}: {self.version}'
 
-def generate_history(data):
+def generate_netnext_cycles(data):
     laststate = None
     events = []
     cycles = []
@@ -119,24 +116,22 @@ def predict(cycles):
         cycles.append(PredictedNetNextCycle(open_date, next_open, next_closed))
     return cycles
 
-
-def git_tag_history(lines):
-    history = []
-    regex = re.compile(r'([^;]+)-rc1;([^;]+);([^;]+)-rc1')
-    for line in lines:
-        mt = regex.findall(line)
-        if mt:
-            tagstr, datestr, versionstr = mt[0][0:3]
-            history.append(LinuxTag(datetime.datetime.fromisoformat(datestr), tagstr, versionstr))
-    return history
-
-def get_git_tags(repo):
+def get_git_linux_tags(repo):
     cp = subprocess.run(['git', '-C', repo, 'tag', '-l',
                          '--format=%(refname:short);%(taggerdate:iso-strict);%(contents:subject)',
                          '--sort=taggerdate'],
                         capture_output=True)
     if cp.returncode == 0:
-        return git_tag_history(cp.stdout.decode().split('\n'))
+        lines = cp.stdout.decode().split('\n')
+        history = []
+        # Look for the RC1 tags as they start a new Linux Version
+        regex = re.compile(r'([^;]+)-rc1;([^;]+);([^;]+)-rc1')
+        for line in lines:
+            mt = regex.findall(line)
+            if mt:
+                tagstr, datestr, versionstr = mt[0][0:3]
+                history.append(LinuxTag(datetime.datetime.fromisoformat(datestr), tagstr, versionstr))
+        return history
     return None
 
 def add_linux_versions(cycles, linux_versions):
@@ -146,6 +141,7 @@ def add_linux_versions(cycles, linux_versions):
             if diff.days <= 2:
                 cycle.set_version(tag.version)
 
+    # add future versions
     last_tag = linux_versions[-1]
     for cycle in cycles:
         if cycle.predicted:
@@ -171,15 +167,15 @@ if __name__ == '__main__':
     if args.filename:
         absfilename = os.path.expanduser(args.filename)
         if not os.path.exists(absfilename):
-            print('No netnext status file found at {}'.format(absfilename))
+            print(f'No netnext status file found at {absfilename}')
             sys.exit(1)
 
         linux_versions = None
         if args.repo:
-            linux_versions = get_git_tags(os.path.expanduser(args.repo))
+            linux_versions = get_git_linux_tags(os.path.expanduser(args.repo))
 
         data = load_datastore(absfilename)
-        cycles = generate_history(data)
+        cycles = generate_netnext_cycles(data)
         cycles = predict(cycles)
         add_linux_versions(cycles, linux_versions)
         if args.generate:
