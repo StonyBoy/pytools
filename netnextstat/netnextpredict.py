@@ -6,18 +6,20 @@ If a git repo is provided the Linux version will be added to the cycles
 Installation:
     pip --user install PyYAML
     pip --user install Jinja2
+    pip --user install pytz
 
 '''
 import os
 import os.path
 import argparse
 import datetime
-import yaml
 import sys
 import subprocess
 import re
 
+import yaml
 import jinja2
+import pytz
 
 statuspath = os.path.expanduser('~/.local/share/netnextstat/status.csv')
 
@@ -50,7 +52,9 @@ class NetNextCycle:
     def __str__(self):
         close = self.day2 - datetime.timedelta(days=1)
         last = self.day3 - datetime.timedelta(days=1)
-        return f'Open: {self.day1} to {close}, {self.open.days} days, Closed: {self.day2} to {last}, {self.close.days} days, {self.version}'
+        return (f'Open: {self.day1.strftime("%d-%b-%Y")} to {close.strftime("%d-%b-%Y")}, {self.open.days} days, '
+                f'Closed: {self.day2.strftime("%d-%b-%Y")} to {last.strftime("%d-%b-%Y")}, {self.close.days} days, '
+                f'{self.version}')
 
 class PredictedNetNextCycle(NetNextCycle):
     def __init__(self, day1, open_days, closed_days):
@@ -152,8 +156,14 @@ def generate_html(cycles, linux_versions, outputpath):
     html_filename = os.path.join(os.path.expanduser(outputpath), 'netnext.html')
     environment = jinja2.Environment(loader=jinja2.FileSystemLoader("templates/"))
     html_template = environment.get_template("netnext.html.jinja")
+    tz = pytz.timezone("Europe/Copenhagen")
+    content = {
+            'cycles': cycles,
+            'linux_versions': linux_versions,
+            'generated': datetime.datetime.now(tz)
+    }
     with open(html_filename, mode="w", encoding="utf-8") as results:
-        results.write(html_template.render({'cycles': cycles, 'linux_versions': linux_versions }))
+        results.write(html_template.render(content))
         print(f"... wrote {html_filename}")
 
 if __name__ == '__main__':

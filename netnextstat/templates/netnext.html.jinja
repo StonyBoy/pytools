@@ -17,6 +17,9 @@
     </div>
     <div class="container-fluid p-5 text-center">
       <h2 class="lead">See the last NetNext cycles and get a prediction of when the next 3 cycles will open and close</h2>
+        <h3 class="lead">
+          Updated: {{ generated.strftime("%d-%b-%Y %H:%M %Z") }}
+        </h3>
     </div>
 
     <div class="container mt-5">
@@ -43,13 +46,13 @@
         {% if cycle.current %}
         <div class="row bg-success text-light">
           <div class="col">
-            {{ cycle.day1 }}
+            {{ cycle.day1.strftime("%d-%b-%Y") }}
           </div>
           <div class="col">
             {{ cycle.open.days }}
           </div>
           <div class="col">
-            {{ cycle.day2 }}
+            {{ cycle.day2.strftime("%d-%b-%Y") }}
           </div>
           <div class="col">
             {{ cycle.close.days }}
@@ -63,13 +66,13 @@
         {% else %}
         <div class="row bg-light">
           <div class="col">
-            {{ cycle.day1 }}
+            {{ cycle.day1.strftime("%d-%b-%Y") }}
           </div>
           <div class="col">
             {{ cycle.open.days }}
           </div>
           <div class="col">
-            {{ cycle.day2 }}
+            {{ cycle.day2.strftime("%d-%b-%Y") }}
           </div>
           <div class="col">
             {{ cycle.close.days }}
@@ -85,7 +88,7 @@
     </div>
     <footer class="fixed-bottom">
       <div class="containerfluid">
-        <span class="bg-light text-center">Steen Hegelund - 6-Nov-2022</span>
+        <span class="bg-light text-center">Steen Hegelund - 7-Nov-2022</span>
       </div>
     </footer>
   </body>
