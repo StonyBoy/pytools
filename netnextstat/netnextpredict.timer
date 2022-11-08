@@ -1,0 +1,11 @@
+[Unit]
+Description=Net Next Predict Timer
+
+[Timer]
+OnBootSec=4m
+OnUnitActiveSec=24h
+Unit=netnextpredict.service
+
+[Install]
+WantedBy=timers.target
+

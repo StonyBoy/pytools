@@ -154,9 +154,11 @@ def add_linux_versions(cycles, linux_versions):
 
 def generate_html(cycles, linux_versions, outputpath):
     html_filename = os.path.join(os.path.expanduser(outputpath), 'netnext.html')
-    environment = jinja2.Environment(loader=jinja2.FileSystemLoader("templates/"))
-    html_template = environment.get_template("netnext.html.jinja")
-    tz = pytz.timezone("Europe/Copenhagen")
+    templatepath = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'templates')
+    print('templates:', templatepath)
+    environment = jinja2.Environment(loader=jinja2.FileSystemLoader(templatepath))
+    html_template = environment.get_template('netnext.html.jinja')
+    tz = pytz.timezone('Europe/Copenhagen')
     content = {
             'cycles': cycles,
             'linux_versions': linux_versions,
