@@ -33,15 +33,8 @@ class NetNextCycle:
         self.day3 = day3
         self.open = self.day2 - self.day1
         self.close = self.day3 - self.day2
-        self.current = False
         self.predicted = False
-        self.update()
         self.version = None
-
-    def update(self):
-        today = datetime.date.today()
-        if self.day1 <= today and today <= self.day3:
-            self.current = True
 
     def set_version(self, version):
         self.version = version
@@ -63,8 +56,6 @@ class PredictedNetNextCycle(NetNextCycle):
         self.close = datetime.timedelta(days=closed_days)
         self.day2 = self.day1 + self.open
         self.day3 = self.day2 + self.close
-        self.predicted = False
-        self.update()
         self.predicted = True
         self.version = None
 

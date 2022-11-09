@@ -43,47 +43,31 @@
         {% endif %}
       </div>
       {% for cycle in cycles %}
-        {% if cycle.current %}
-        <div class="row bg-success text-light">
-          <div class="col">
-            {{ cycle.day1.strftime("%d-%b-%Y") }}
-          </div>
-          <div class="col">
-            {{ cycle.open.days }}
-          </div>
-          <div class="col">
-            {{ cycle.day2.strftime("%d-%b-%Y") }}
-          </div>
-          <div class="col">
-            {{ cycle.close.days }}
-          </div>
-          {% if linux_versions %}
-          <div class="col">
-            {{ cycle.version }}
-          </div>
+        {% if cycle.day1 <= generated.date() and generated.date() < cycle.day2 %}
+          <div class="row text-bg-success">
+          {% elif cycle.day2 <= generated.date() and generated.date() < cycle.day3 %}
+          <div class="row text-bg-danger">
+          {% else %}
+          <div class="row text-bg-light">
           {% endif %}
-        </div>
-        {% else %}
-        <div class="row bg-light">
-          <div class="col">
-            {{ cycle.day1.strftime("%d-%b-%Y") }}
+            <div class="col">
+              {{ cycle.day1.strftime("%d-%b-%Y") }}
+            </div>
+            <div class="col">
+              {{ cycle.open.days }}
+            </div>
+            <div class="col">
+              {{ cycle.day2.strftime("%d-%b-%Y") }}
+            </div>
+            <div class="col">
+              {{ cycle.close.days }}
+            </div>
+            {% if linux_versions %}
+              <div class="col">
+                {{ cycle.version }}
+              </div>
+            {% endif %}
           </div>
-          <div class="col">
-            {{ cycle.open.days }}
-          </div>
-          <div class="col">
-            {{ cycle.day2.strftime("%d-%b-%Y") }}
-          </div>
-          <div class="col">
-            {{ cycle.close.days }}
-          </div>
-          {% if linux_versions %}
-          <div class="col">
-            {{ cycle.version }}
-          </div>
-          {% endif %}
-        </div>
-        {% endif %}
       {% endfor %}
     </div>
     <footer class="fixed-bottom">
