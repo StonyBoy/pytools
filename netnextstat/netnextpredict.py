@@ -39,9 +39,6 @@ class NetNextCycle:
     def set_version(self, version):
         self.version = version
 
-    def no_version(self):
-        return self.version == None
-
     def __str__(self):
         close = self.day2 - datetime.timedelta(days=1)
         last = self.day3 - datetime.timedelta(days=1)
