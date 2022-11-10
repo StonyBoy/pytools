@@ -141,7 +141,7 @@ def add_linux_versions(cycles, linux_versions):
             cycle.set_version(last_tag.version)
 
 def generate_html(cycles, linux_versions, outputpath):
-    html_filename = os.path.join(os.path.expanduser(outputpath), 'netnext.html')
+    html_filename = os.path.join(os.path.expanduser(outputpath), 'index.html')
     templatepath = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'templates')
     print('templates:', templatepath)
     environment = jinja2.Environment(loader=jinja2.FileSystemLoader(templatepath))
@@ -177,7 +177,8 @@ if __name__ == '__main__':
         data = load_datastore(absfilename)
         cycles = generate_netnext_cycles(data)
         cycles = predict(cycles)
-        add_linux_versions(cycles, linux_versions)
+        if linux_versions:
+            add_linux_versions(cycles, linux_versions)
         if args.generate:
             generate_html(cycles, linux_versions, args.outdir)
         else:
