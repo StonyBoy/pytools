@@ -140,17 +140,16 @@ def add_linux_versions(cycles, linux_versions):
             last_tag.increment()
             cycle.set_version(last_tag.version)
 
-def generate_html(cycles, linux_versions, outputpath):
+def generate_html(cycles, date, linux_versions, outputpath):
     html_filename = os.path.join(os.path.expanduser(outputpath), 'index.html')
     templatepath = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'templates')
     print('templates:', templatepath)
     environment = jinja2.Environment(loader=jinja2.FileSystemLoader(templatepath))
     html_template = environment.get_template('netnext.html.jinja')
-    tz = pytz.timezone('Europe/Copenhagen')
     content = {
             'cycles': cycles,
             'linux_versions': linux_versions,
-            'generated': datetime.datetime.now(tz)
+            'generated': date,
     }
     with open(html_filename, mode="w", encoding="utf-8") as results:
         results.write(html_template.render(content))
@@ -161,6 +160,8 @@ if __name__ == '__main__':
     parser.add_argument('-g', '--generate', help='Generate an HTML file with the prediction', action='store_true')
     parser.add_argument('-o', '--outdir', help='Output folder for generated files', type=str, default='.')
     parser.add_argument('-r', '--repo', help='path to linux git repo with tag information', type=str, default=None)
+    parser.add_argument('-d', '--date', help='set current date', type=str, default=None)
+    parser.add_argument('-z', '--timezone', help='set timezone for current date', type=str, default=None)
     parser.add_argument('filename', help='Path to the netnext datastore file', type=str, metavar='path',
                         default=statuspath)
     args = parser.parse_args()
@@ -179,8 +180,14 @@ if __name__ == '__main__':
         cycles = predict(cycles)
         if linux_versions:
             add_linux_versions(cycles, linux_versions)
+        tz = pytz.timezone('Europe/Copenhagen')
+        if args.timezone:
+            tz = pytz.timezone(args.timezone)
+        date = datetime.datetime.now(tz)
+        if args.date:
+            date = datetime.datetime.fromisoformat(args.date)
         if args.generate:
-            generate_html(cycles, linux_versions, args.outdir)
+            generate_html(cycles, date, linux_versions, args.outdir)
         else:
             for cycle in cycles:
                 print(cycle)

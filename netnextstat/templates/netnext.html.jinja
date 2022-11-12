@@ -44,9 +44,9 @@
       </div>
       {% for cycle in cycles %}
         {% if cycle.day1 <= generated.date() and generated.date() < cycle.day2 %}
-          <div class="row text-bg-success text-center">
+          <div id="current" class="row text-bg-success text-center">
           {% elif cycle.day2 <= generated.date() and generated.date() < cycle.day3 %}
-          <div class="row text-bg-danger text-center">
+          <div id="current" class="row text-bg-danger text-center">
           {% else %}
           <div class="row text-bg-light text-center">
           {% endif %}
@@ -75,5 +75,10 @@
         <span class="bg-light text-center">Steen Hegelund - 7-Nov-2022</span>
       </div>
     </footer>
+    <script>
+      document.addEventListener("DOMContentLoaded", function() {
+        document.getElementById("current").scrollIntoView();
+      });
+    </script>
   </body>
 </html>
