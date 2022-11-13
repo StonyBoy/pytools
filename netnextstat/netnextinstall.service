@@ -1,0 +1,6 @@
+[Unit]
+Description=Install the updated information in the One.com server
+
+[Service]
+Type=oneshot
+ExecStart=scp %h/netnext/index.html one:~/../httpd.www/netnext/
