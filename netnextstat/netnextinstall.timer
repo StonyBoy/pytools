@@ -2,9 +2,9 @@
 Description=Net Next Install Update Service
 
 [Timer]
-OnBootSec=6m
-OnUnitActiveSec=24h
 Unit=netnextinstall.service
+OnCalendar=*-*-* 23:02:00
+Persistent=True
 
 [Install]
 WantedBy=timers.target

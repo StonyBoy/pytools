@@ -2,9 +2,9 @@
 Description=Net Next Predict Timer
 
 [Timer]
-OnBootSec=4m
-OnUnitActiveSec=24h
 Unit=netnextpredict.service
+OnCalendar=*-*-* 23:01:00
+Persistent=True
 
 [Install]
 WantedBy=timers.target
