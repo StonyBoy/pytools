@@ -16,6 +16,10 @@ def set_sway_wallpaper():
     print('set sway wallpaper')
     subprocess.run(['swaymsg', 'output * bg /opt/wallpapers/wallpaper.jpg fill'])
 
+def set_i3_wallpaper():
+    print('set i3 wallpaper')
+    subprocess.run(['feh', '--bg-fill', '/opt/wallpapers/wallpaper.jpg'])
+
 def rename_file(filename):
     if (filename.endswith('.jpg') or filename.endswith('.JPG')) and not filename.startswith('.'):
         newname = filename.replace(' ', '-').lower()
@@ -70,6 +74,7 @@ if __name__ == '__main__':
     parser.add_argument('-l', dest='lockfile', help='Create lockscreen.jpg file', action='store_true')
     parser.add_argument('-w', dest='wallpaper', help='Create wallpaper.jpg file', action='store_true')
     parser.add_argument('-a', dest='sway', help='Update sway background with wallpaper.jpg file', action='store_true')
+    parser.add_argument('-t', dest='i3', help='Update i3 background with wallpaper.jpg file', action='store_true')
     parser.add_argument('-s', dest='login', help='Create login_screen.jpg file', action='store_true')
     parser.add_argument('-r', dest='random', help='Select a random image from the specified path', action='store_true')
     parser.add_argument('filenames', help='Image file or a path to images', nargs='*', metavar='path')
@@ -97,3 +102,5 @@ if __name__ == '__main__':
             print('Created', newfullpath)
             if args.sway:
                 set_sway_wallpaper()
+            elif args.i3:
+                set_i3_wallpaper()
