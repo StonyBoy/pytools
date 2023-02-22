@@ -3,7 +3,10 @@ Description=Net Next Install Update Service
 
 [Timer]
 Unit=netnextinstall.service
-OnCalendar=*-*-* 23:02:00
+OnCalendar=*-*-* 00:01:00
+OnCalendar=*-*-* 06:01:00
+OnCalendar=*-*-* 12:01:00
+OnCalendar=*-*-* 18:01:00
 Persistent=True
 
 [Install]
