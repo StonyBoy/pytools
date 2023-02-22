@@ -1,30 +1,81 @@
 #! /usr/bin/env python3
 '''
-Read the netnetstatus file and calculate statistics and predict the next cycle
-If a git repo is provided the Linux version will be added to the cycles
+Read the lore.kernel.org netdev email list using a query to get the emails that announce that net-next opens or closes.
+Use that to show the historic net-next cycles and predict the next three.
 
 Installation:
-    pip --user install PyYAML
-    pip --user install Jinja2
-    pip --user install pytz
+    pip install beautifulsoup4
+    pip install PyYAML
+    pip install Jinja2
 
 '''
+import sys
+import urllib.request
+import bs4
+import re
+import datetime
 import os
 import os.path
 import argparse
-import datetime
-import sys
-import subprocess
-import re
-
 import yaml
-import jinja2
 import pytz
+import jinja2
+import subprocess
 
-statuspath = os.path.expanduser('~/.local/share/netnextstat/status.csv')
+re_state = re.compile(r'net-next is (OPEN|CLOSED)', re.IGNORECASE)
+re_pull_rc1 = re.compile(r'\[GIT PULL\] Networking for ([0-9.]+-rc[1-2])', re.IGNORECASE)
+re_author = re.compile(r'-\sby\s([^@]+)\s@\s(\S+)\s+(\S+)\s+(\S+)\s+\[\d+%\]')
 
-def load_datastore(filename):
-    return yaml.load(open(filename, 'rt'), Loader=yaml.FullLoader)
+history_limit = datetime.datetime.strptime('2018-08-28 15:43', '%Y-%m-%d %H:%M').date()
+
+
+class NetNextNotification:
+    def __init__(self, subject, author):
+        self._state = subject
+        self._author = author
+        self._datetime = datetime.datetime.now()
+
+    @property
+    def state(self):
+        return self._state.capitalize()
+
+    @property
+    def date(self):
+        return self._datetime.date()
+
+    def __eq__(self, other):
+        return self._datetime == other._datetime
+
+    def __lt__(self, other):
+        return self._datetime < other._datetime
+
+    def __str__(self):
+        return f'{self._state:<10} {self._author:<20} {self._datetime}'
+
+
+class NetNextStateChange(NetNextNotification):
+    def __init__(self, subject, author):
+        self._state = re_state.findall(subject)[0].upper()
+        mt = re_author.findall(author)
+        if mt:
+            self._author = mt[0][0]
+            self._datetime = datetime.datetime.strptime(f'{mt[0][1]} {mt[0][2]} {mt[0][3]}', '%Y-%m-%d %H:%M %Z')
+        else:
+            self._author = ''
+            self._datetime = datetime.datetime.strptime(author, '%Y-%m-%d')
+
+
+class NetNextPullRequest(NetNextNotification):
+    def __init__(self, subject, author):
+        self._state = re_pull_rc1.findall(subject)[0]
+        mt = re_author.findall(author)
+        if mt:
+            self._author = mt[0][0]
+            self._datetime = datetime.datetime.strptime(f'{mt[0][1]} {mt[0][2]} {mt[0][3]}', '%Y-%m-%d %H:%M %Z')
+        else:
+            self._author = ''
+            self._datetime = datetime.datetime.strptime(author, '%Y-%m-%d')
+
 
 class NetNextCycle:
     def __init__(self, day1, day2, day3):
@@ -46,7 +97,8 @@ class NetNextCycle:
                 f'Closed: {self.day2.strftime("%d-%b-%Y")} to {last.strftime("%d-%b-%Y")}, {self.closed.days} days, '
                 f'{self.version}')
 
-class PredictedNetNextCycle(NetNextCycle):
+
+class FullPredictedNetNextCycle(NetNextCycle):
     def __init__(self, day1, open_days, closed_days):
         self.day1 = day1
         self.open = datetime.timedelta(days=open_days)
@@ -56,28 +108,28 @@ class PredictedNetNextCycle(NetNextCycle):
         self.predicted = True
         self.version = None
 
-    def update(self, today, events):
-        date, state = events[-1]
-        if today >= self.day2:
-            if state == 'Open':
-                self.extend_opened(today)
-            else:
-                self.extend_closed(today, events)
 
-    def extend_opened(self, today):
-        # print('extend open: today: {}'.format(today))
-        self.day2 = today + datetime.timedelta(days=1)
+class OpenPredictedNetNextCycle(NetNextCycle):
+    def __init__(self, today, day1, open_days, closed_days):
+        self.day1 = day1
+        self.open = datetime.timedelta(days=open_days)
+        self.closed = datetime.timedelta(days=closed_days)
+        self.day2 = self.day1 + self.open - (today - day1)
         self.day3 = self.day2 + self.closed
-        self.open = self.day2 - self.day1
+        self.predicted = True
+        self.version = None
 
-    def extend_closed(self, today, events):
-        # print('extend closed: date: {}'.format(today))
-        self.day1 = events[-2][0]
-        self.day2 = events[-1][0]
-        self.open = self.day2 - self.day1
-        if today >= self.day3:
-            self.day3 = today + datetime.timedelta(days=1)
-            self.closed = self.day3 - self.day2
+
+class ClosePredictedNetNextCycle(NetNextCycle):
+    def __init__(self, today, day1, day2, closed_days):
+        self.day1 = day1
+        self.day2 = day2
+        self.open = day2 - day1
+        self.closed = datetime.timedelta(days=closed_days)
+        self.day3 = self.day2 + self.closed - (today - day2)
+        self.predicted = True
+        self.version = None
+
 
 class LinuxTag:
     regex = re.compile(r'Linux (\d+)\.(\d+)')
@@ -101,34 +153,79 @@ class LinuxTag:
     def __str__(self):
         return f'{self.date}: {self.version}'
 
-def get_events(data):
-    laststate = None
-    events = []
-    for day, state in data.items():
-        if state != laststate:
-            events.append((day, state))
-            laststate = state
-    return events
 
-def generate_netnext_cycles(events):
+def load_datastore(filename):
+    return yaml.load(open(filename, 'rt'), Loader=yaml.FullLoader)
+
+
+missing_data = [
+    NetNextStateChange('net-next is Open', '2019-05-20'),
+    NetNextStateChange('net-next is Closed', '2021-02-13'),
+    NetNextStateChange('net-next is Closed', '2021-04-24'),
+    NetNextStateChange('net-next is Open', '2021-05-12'),
+    NetNextStateChange('net-next is Closed', '2021-06-26'),
+    NetNextStateChange('net-next is Open', '2021-07-10'),
+    NetNextStateChange('net-next is Closed', '2021-08-28'),
+    NetNextStateChange('net-next is Closed', '2021-10-30'),
+    NetNextStateChange('net-next is Closed', '2022-01-11'),
+]
+
+
+def get_updated_history():
+    history = get_netnext_history() + missing_data
+    return sorted(history)
+
+
+def save_datastore(filename, data):
+    dirname = os.path.dirname(filename)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    updated = {}
+    for item in data:
+        updated[item.date] = item.state
+    yaml.dump(updated, open(filename, 'wt'))
+    print(f"... wrote {filename}")
+
+
+def get_netnext_history():
+    res = []
+    uri = 'https://lore.kernel.org/netdev/?q=s%3A%22net-next+is+%22'
+    with urllib.request.urlopen(uri) as response:
+       html = response.read()
+       parsed_html = bs4.BeautifulSoup(html, 'html.parser')
+       for item in parsed_html.find_all('a'):
+           if re_state.search(item.text) and not 'Re:' in item.text:
+               state =  NetNextStateChange(item.text, item.parent.next_sibling)
+               if state.date >= history_limit:
+                   res.append(state)
+    return res
+
+def get_netnext_prs():
+    res = []
+    uri = 'https://lore.kernel.org/netdev/?q=s%3B%22%5BGIT+PULL%5D+Networking+for+*%22'
+    with urllib.request.urlopen(uri) as response:
+       html = response.read()
+       parsed_html = bs4.BeautifulSoup(html, 'html.parser')
+       for item in parsed_html.find_all('a'):
+           if re_pull_rc1.search(item.text) and not 'Re:' in item.text:
+               res.append(NetNextPullRequest(item.text, item.parent.next_sibling))
+    return res
+
+
+def generate_netnext_cycles(history):
     cycles = []
-    size = len(events)
-    if size > 2:
-        for idx, (day, state) in enumerate(events):
-            if state == 'Open' and idx < size - 2:
-                cycles.append(NetNextCycle(day, events[idx+1][0], events[idx+2][0]))
+    size = len(history)
+    for idx, item in enumerate(history):
+        if item.state == 'Open':
+            if idx < size - 2:
+                cycles.append(NetNextCycle(item.date, history[idx+1].date, history[idx+2].date))
     for idx, cycle in enumerate(cycles):
         if cycle.open.days < 20:
             del cycles[idx]
     return cycles
 
-def get_latest(data):
-    last = None
-    for item in data.items():
-        last = item
-    return last
 
-def predict(cycles, today, events):
+def predict(cycles, today, history):
     open_days = []
     closed_days = []
     for cycle in cycles[-3:]:
@@ -136,13 +233,20 @@ def predict(cycles, today, events):
         closed_days.append(cycle.closed.days)
     next_open = int(sum(open_days) / len(open_days))
     next_closed = int(sum(closed_days) / len(closed_days))
-    for idx in range(0, 3):
+    size = len(history)
+    for idx, item in enumerate(history):
+        if item.state == 'Open':
+            if idx >= size - 2:
+                if idx < size - 1:
+                    cycle = ClosePredictedNetNextCycle(today, item.date, history[-1].date, next_closed)
+                else:
+                    cycle = OpenPredictedNetNextCycle(today, item.date, next_open, next_closed)
+                cycles.append(cycle)
+    for idx in range(0, 2):
         open_date = cycles[-1].day3
-        cycle = PredictedNetNextCycle(open_date, next_open, next_closed)
-        if idx == 0 and len(events) >= 2:
-            cycle.update(today, events)
-        cycles.append(cycle)
+        cycles.append (FullPredictedNetNextCycle(open_date, next_open, next_closed))
     return cycles
+
 
 def get_git_linux_tags(repo):
     cp = subprocess.run(['git', '-C', repo, 'tag', '-l',
@@ -162,6 +266,7 @@ def get_git_linux_tags(repo):
         return history
     return None
 
+
 def add_linux_versions(cycles, linux_versions):
     for cycle in cycles:
         for tag in linux_versions:
@@ -175,6 +280,7 @@ def add_linux_versions(cycles, linux_versions):
         if cycle.predicted:
             last_tag.increment()
             cycle.set_version(last_tag.version)
+
 
 def generate_html(cycles, date, linux_versions, outputpath):
     html_filename = os.path.join(os.path.expanduser(outputpath), 'index.html')
@@ -191,42 +297,66 @@ def generate_html(cycles, date, linux_versions, outputpath):
         results.write(html_template.render(content))
         print(f"... wrote {html_filename}")
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('-p', '--pullreq', help='Get rc1 or rc2 pull requests', action='store_true')
+    parser.add_argument('-d', '--date', help='set current date', type=str, default=None)
+    parser.add_argument('-z', '--timezone', help='set timezone for current date', type=str, default='Europe/Copenhagen')
     parser.add_argument('-g', '--generate', help='Generate an HTML file with the prediction', action='store_true')
     parser.add_argument('-o', '--outdir', help='Output folder for generated files', type=str, default='.')
     parser.add_argument('-r', '--repo', help='path to linux git repo with tag information', type=str, default=None)
-    parser.add_argument('-d', '--date', help='set current date', type=str, default=None)
-    parser.add_argument('-z', '--timezone', help='set timezone for current date', type=str, default='Europe/Copenhagen')
-    parser.add_argument('filename', help='Path to the netnext datastore file', type=str, metavar='path',
-                        default=statuspath)
+    parser.add_argument('-s', '--statusonly', help='Just get the lore.kernel.org net-next status', action='store_true')
+    parser.add_argument('-a', '--savestatus', help='Save the lore.kernel.org net-next status', action='store_true')
+
     args = parser.parse_args()
-    if args.filename:
-        absfilename = os.path.expanduser(args.filename)
-        if not os.path.exists(absfilename):
-            print(f'No netnext status file found at {absfilename}')
-            sys.exit(1)
 
-        linux_versions = None
-        if args.repo:
-            linux_versions = get_git_linux_tags(os.path.expanduser(args.repo))
+    history = get_updated_history()
 
-        tz = pytz.timezone('Europe/Copenhagen')
-        if args.timezone:
-            tz = pytz.timezone(args.timezone)
-        date = datetime.datetime.now(tz)
-        if args.date:
-            date = datetime.datetime.fromisoformat(args.date)
-        data = load_datastore(absfilename)
-        events = get_events(data)
-        # for idx, (day, state) in enumerate(events):
-        #     print('event {}: {}: {}'.format(idx, day, state))
-        cycles = generate_netnext_cycles(events)
-        cycles = predict(cycles, date.date(), events)
+    if args.savestatus:
+        filename = 'history.yaml'
+        if args.outdir:
+            datastorepath = os.path.join(os.path.expanduser(args.outdir), filename)
+        else:
+            datastorepath = filename
+        save_datastore(datastorepath, history)
+        sys.exit(0)
+
+    if args.statusonly:
+        if args.pullreq:
+            print('Net Next RC1/RC2 pull requests')
+            history += get_netnext_prs()
+            history = sorted(history)
+
+        print('Net Next Status Emails')
+        last = history[0].date
+        for item in history:
+            diff = item.date - last
+            print(f'    {item} {diff.days} {"***" if diff.days > 65 else ""}')
+            last = item.date
+        sys.exit(0)
+
+    cycles = generate_netnext_cycles(history)
+
+    tz = pytz.timezone('Europe/Copenhagen')
+    if args.timezone:
+        tz = pytz.timezone(args.timezone)
+    date = datetime.datetime.now(tz)
+    if args.date:
+        date = datetime.datetime.fromisoformat(args.date)
+
+    cycles = predict(cycles, date.date(), history)
+
+    linux_versions = None
+    if args.repo:
+        linux_versions = get_git_linux_tags(os.path.expanduser(args.repo))
         if linux_versions:
             add_linux_versions(cycles, linux_versions)
-        if args.generate:
-            generate_html(cycles, date, linux_versions, args.outdir)
-        else:
-            for cycle in cycles:
-                print(cycle)
+
+    if args.generate:
+        generate_html(cycles, date, linux_versions, args.outdir)
+    else:
+        print('Net Next Cycles Prediction')
+        for item in cycles:
+            print(f'    {item}')
+
