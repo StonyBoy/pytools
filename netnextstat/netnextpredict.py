@@ -35,6 +35,16 @@ class NetNextNotification:
         self._author = author
         self._datetime = datetime.datetime.now()
 
+    def parse(self, regex, subject, author):
+        self._state = regex.findall(subject)[0]
+        mt = re_author.findall(author)
+        if mt:
+            self._author = mt[0][0]
+            self._datetime = datetime.datetime.strptime(f'{mt[0][1]} {mt[0][2]} {mt[0][3]}', '%Y-%m-%d %H:%M %Z')
+        else:
+            self._author = ''
+            self._datetime = datetime.datetime.strptime(author, '%Y-%m-%d')
+
     @property
     def state(self):
         return self._state.capitalize()
@@ -42,6 +52,10 @@ class NetNextNotification:
     @property
     def date(self):
         return self._datetime.date()
+
+    @property
+    def yaml(self):
+        return [str(self.date), { 'state': self.state, 'author': self._author }]
 
     def __eq__(self, other):
         return self._datetime == other._datetime
@@ -55,26 +69,12 @@ class NetNextNotification:
 
 class NetNextStateChange(NetNextNotification):
     def __init__(self, subject, author):
-        self._state = re_state.findall(subject)[0].upper()
-        mt = re_author.findall(author)
-        if mt:
-            self._author = mt[0][0]
-            self._datetime = datetime.datetime.strptime(f'{mt[0][1]} {mt[0][2]} {mt[0][3]}', '%Y-%m-%d %H:%M %Z')
-        else:
-            self._author = ''
-            self._datetime = datetime.datetime.strptime(author, '%Y-%m-%d')
+        self.parse(re_state, subject, author)
 
 
 class NetNextPullRequest(NetNextNotification):
     def __init__(self, subject, author):
-        self._state = re_pull_rc1.findall(subject)[0]
-        mt = re_author.findall(author)
-        if mt:
-            self._author = mt[0][0]
-            self._datetime = datetime.datetime.strptime(f'{mt[0][1]} {mt[0][2]} {mt[0][3]}', '%Y-%m-%d %H:%M %Z')
-        else:
-            self._author = ''
-            self._datetime = datetime.datetime.strptime(author, '%Y-%m-%d')
+        self.parse(re_pull_rc1, subject, author)
 
 
 class NetNextCycle:
@@ -98,7 +98,7 @@ class NetNextCycle:
                 f'{self.version}')
 
 
-class FullPredictedNetNextCycle(NetNextCycle):
+class PredictedNetNextCycle(NetNextCycle):
     def __init__(self, day1, open_days, closed_days):
         self.day1 = day1
         self.open = datetime.timedelta(days=open_days)
@@ -108,27 +108,14 @@ class FullPredictedNetNextCycle(NetNextCycle):
         self.predicted = True
         self.version = None
 
-
-class OpenPredictedNetNextCycle(NetNextCycle):
-    def __init__(self, today, day1, open_days, closed_days):
-        self.day1 = day1
-        self.open = datetime.timedelta(days=open_days)
-        self.closed = datetime.timedelta(days=closed_days)
-        self.day2 = self.day1 + self.open - (today - day1)
+    def open_update(self, today):
+        self.day2 = self.day1 + self.open - (today - self.day1)
         self.day3 = self.day2 + self.closed
-        self.predicted = True
-        self.version = None
 
-
-class ClosePredictedNetNextCycle(NetNextCycle):
-    def __init__(self, today, day1, day2, closed_days):
-        self.day1 = day1
+    def close_update(self, today, day2):
         self.day2 = day2
-        self.open = day2 - day1
-        self.closed = datetime.timedelta(days=closed_days)
+        self.open = day2 - self.day1
         self.day3 = self.day2 + self.closed - (today - day2)
-        self.predicted = True
-        self.version = None
 
 
 class LinuxTag:
@@ -180,10 +167,8 @@ def save_datastore(filename, data):
     dirname = os.path.dirname(filename)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
-    updated = {}
-    for item in data:
-        updated[item.date] = item.state
-    yaml.dump(updated, open(filename, 'wt'))
+    history = dict([item.yaml for item in data])
+    yaml.dump(history, open(filename, 'wt'))
     print(f"... wrote {filename}")
 
 
@@ -237,14 +222,15 @@ def predict(cycles, today, history):
     for idx, item in enumerate(history):
         if item.state == 'Open':
             if idx >= size - 2:
+                cycle = PredictedNetNextCycle(item.date, next_open, next_closed)
                 if idx < size - 1:
-                    cycle = ClosePredictedNetNextCycle(today, item.date, history[-1].date, next_closed)
+                    cycle.close_update(today, history[-1].date)
                 else:
-                    cycle = OpenPredictedNetNextCycle(today, item.date, next_open, next_closed)
+                    cycle.open_update(today)
                 cycles.append(cycle)
     for idx in range(0, 2):
         open_date = cycles[-1].day3
-        cycles.append (FullPredictedNetNextCycle(open_date, next_open, next_closed))
+        cycles.append (PredictedNetNextCycle(open_date, next_open, next_closed))
     return cycles
 
 
@@ -301,11 +287,11 @@ def generate_html(cycles, date, linux_versions, outputpath):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('-p', '--pullreq', help='Get rc1 or rc2 pull requests', action='store_true')
-    parser.add_argument('-d', '--date', help='set current date', type=str, default=None)
-    parser.add_argument('-z', '--timezone', help='set timezone for current date', type=str, default='Europe/Copenhagen')
+    parser.add_argument('-d', '--date', help='Set current date', type=str, default=None)
+    parser.add_argument('-z', '--timezone', help='Set timezone for current date', type=str, default='Europe/Copenhagen')
     parser.add_argument('-g', '--generate', help='Generate an HTML file with the prediction', action='store_true')
     parser.add_argument('-o', '--outdir', help='Output folder for generated files', type=str, default='.')
-    parser.add_argument('-r', '--repo', help='path to linux git repo with tag information', type=str, default=None)
+    parser.add_argument('-r', '--repo', help='Path to linux git repo with tag information', type=str, default=None)
     parser.add_argument('-s', '--statusonly', help='Just get the lore.kernel.org net-next status', action='store_true')
     parser.add_argument('-a', '--savestatus', help='Save the lore.kernel.org net-next status', action='store_true')
 
@@ -324,11 +310,12 @@ if __name__ == '__main__':
 
     if args.statusonly:
         if args.pullreq:
-            print('Net Next RC1/RC2 pull requests')
+            print('Net Next Emails with RC1/RC2 pull requests')
             history += get_netnext_prs()
             history = sorted(history)
+        else:
+            print('Net Next Status Emails')
 
-        print('Net Next Status Emails')
         last = history[0].date
         for item in history:
             diff = item.date - last
@@ -336,7 +323,7 @@ if __name__ == '__main__':
             last = item.date
         sys.exit(0)
 
-    cycles = generate_netnext_cycles(history)
+    cycles = generate_netnext_cycles(history)[-17:]
 
     tz = pytz.timezone('Europe/Copenhagen')
     if args.timezone:
