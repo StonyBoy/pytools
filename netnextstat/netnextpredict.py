@@ -112,10 +112,10 @@ class PredictedNetNextCycle(NetNextCycle):
         self.day2 = self.day1 + self.open - (today - self.day1)
         self.day3 = self.day2 + self.closed
 
-    def close_update(self, today, day2):
+    def close_update(self, day2):
         self.day2 = day2
         self.open = day2 - self.day1
-        self.day3 = self.day2 + self.closed - (today - day2)
+        self.day3 = self.day2 + self.closed
 
 
 class LinuxTag:
@@ -224,7 +224,7 @@ def predict(cycles, today, history):
             if idx >= size - 2:
                 cycle = PredictedNetNextCycle(item.date, next_open, next_closed)
                 if idx < size - 1:
-                    cycle.close_update(today, history[-1].date)
+                    cycle.close_update(history[-1].date)
                 else:
                     cycle.open_update(today)
                 cycles.append(cycle)
