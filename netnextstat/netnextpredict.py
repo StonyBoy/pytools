@@ -108,14 +108,11 @@ class PredictedNetNextCycle(NetNextCycle):
         self.predicted = True
         self.version = None
 
-    def open_update(self, today):
-        self.day2 = self.day1 + self.open - (today - self.day1)
-        self.day3 = self.day2 + self.closed
-
     def close_update(self, day2):
         self.day2 = day2
         self.open = day2 - self.day1
         self.day3 = self.day2 + self.closed
+        # print(f'close_update: day1: {self.day1}, day2: {self.day2}, day3: {self.day3}')
 
 
 class LinuxTag:
@@ -210,7 +207,7 @@ def generate_netnext_cycles(history):
     return cycles
 
 
-def predict(cycles, today, history):
+def predict(cycles, history):
     open_days = []
     closed_days = []
     for cycle in cycles[-3:]:
@@ -225,8 +222,6 @@ def predict(cycles, today, history):
                 cycle = PredictedNetNextCycle(item.date, next_open, next_closed)
                 if idx < size - 1:
                     cycle.close_update(history[-1].date)
-                else:
-                    cycle.open_update(today)
                 cycles.append(cycle)
     for idx in range(0, 2):
         open_date = cycles[-1].day3
@@ -287,7 +282,6 @@ def generate_html(cycles, date, linux_versions, outputpath):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('-p', '--pullreq', help='Get rc1 or rc2 pull requests', action='store_true')
-    parser.add_argument('-d', '--date', help='Set current date', type=str, default=None)
     parser.add_argument('-z', '--timezone', help='Set timezone for current date', type=str, default='Europe/Copenhagen')
     parser.add_argument('-g', '--generate', help='Generate an HTML file with the prediction', action='store_true')
     parser.add_argument('-o', '--outdir', help='Output folder for generated files', type=str, default='.')
@@ -329,10 +323,8 @@ if __name__ == '__main__':
     if args.timezone:
         tz = pytz.timezone(args.timezone)
     date = datetime.datetime.now(tz)
-    if args.date:
-        date = datetime.datetime.fromisoformat(args.date)
 
-    cycles = predict(cycles, date.date(), history)
+    cycles = predict(cycles, history)
 
     linux_versions = None
     if args.repo:
