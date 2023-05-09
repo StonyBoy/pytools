@@ -7,6 +7,7 @@ Installation:
     pip install beautifulsoup4
     pip install PyYAML
     pip install Jinja2
+    pip install pytz
 
 '''
 import sys
@@ -89,6 +90,9 @@ class NetNextCycle:
 
     def set_version(self, version):
         self.version = version
+
+    def has_no_version(self):
+        return self.version is None
 
     def __str__(self):
         close = self.day2 - datetime.timedelta(days=1)
@@ -249,16 +253,16 @@ def get_git_linux_tags(repo):
 
 
 def add_linux_versions(cycles, linux_versions):
+    last_tag = linux_versions[0]
     for cycle in cycles:
         for tag in linux_versions:
             diff = tag.date - cycle.day3
-            if diff.days <= 2:
+            near = diff.days > -14 and diff.days < 2
+            if near:
                 cycle.set_version(tag.version)
-
-    # add future versions
-    last_tag = linux_versions[-1]
-    for cycle in cycles:
-        if cycle.predicted:
+                last_tag = tag
+                break
+        if cycle.has_no_version():
             last_tag.increment()
             cycle.set_version(last_tag.version)
 
