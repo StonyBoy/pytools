@@ -56,7 +56,7 @@ class NetNextNotification:
 
     @property
     def yaml(self):
-        return [str(self.date), { 'state': self.state, 'author': self._author }]
+        return [str(self.date), {'state': self.state, 'author': self._author}]
 
     def __eq__(self, other):
         return self._datetime == other._datetime
@@ -177,24 +177,25 @@ def get_netnext_history():
     res = []
     uri = 'https://lore.kernel.org/netdev/?q=s%3A%22net-next+is+%22'
     with urllib.request.urlopen(uri) as response:
-       html = response.read()
-       parsed_html = bs4.BeautifulSoup(html, 'html.parser')
-       for item in parsed_html.find_all('a'):
-           if re_state.search(item.text) and not 'Re:' in item.text:
-               state =  NetNextStateChange(item.text, item.parent.next_sibling)
-               if state.date >= history_limit:
-                   res.append(state)
+        html = response.read()
+        parsed_html = bs4.BeautifulSoup(html, 'html.parser')
+        for item in parsed_html.find_all('a'):
+            if re_state.search(item.text) and 'Re:' not in item.text:
+                state = NetNextStateChange(item.text, item.parent.next_sibling)
+                if state.date >= history_limit:
+                    res.append(state)
     return res
+
 
 def get_netnext_prs():
     res = []
     uri = 'https://lore.kernel.org/netdev/?q=s%3B%22%5BGIT+PULL%5D+Networking+for+*%22'
     with urllib.request.urlopen(uri) as response:
-       html = response.read()
-       parsed_html = bs4.BeautifulSoup(html, 'html.parser')
-       for item in parsed_html.find_all('a'):
-           if re_pull_rc1.search(item.text) and not 'Re:' in item.text:
-               res.append(NetNextPullRequest(item.text, item.parent.next_sibling))
+        html = response.read()
+        parsed_html = bs4.BeautifulSoup(html, 'html.parser')
+        for item in parsed_html.find_all('a'):
+            if re_pull_rc1.search(item.text) and 'Re:' not in item.text:
+                res.append(NetNextPullRequest(item.text, item.parent.next_sibling))
     return res
 
 
@@ -204,7 +205,7 @@ def generate_netnext_cycles(history):
     for idx, item in enumerate(history):
         if item.state == 'Open':
             if idx < size - 2:
-                cycles.append(NetNextCycle(item.date, history[idx+1].date, history[idx+2].date))
+                cycles.append(NetNextCycle(item.date, history[idx + 1].date, history[idx + 2].date))
     for idx, cycle in enumerate(cycles):
         if cycle.open.days < 20:
             del cycles[idx]
@@ -229,7 +230,7 @@ def predict(cycles, history):
                 cycles.append(cycle)
     for idx in range(0, 2):
         open_date = cycles[-1].day3
-        cycles.append (PredictedNetNextCycle(open_date, next_open, next_closed))
+        cycles.append(PredictedNetNextCycle(open_date, next_open, next_closed))
     return cycles
 
 
@@ -274,9 +275,9 @@ def generate_html(cycles, date, linux_versions, outputpath):
     environment = jinja2.Environment(loader=jinja2.FileSystemLoader(templatepath))
     html_template = environment.get_template('netnext.html.jinja')
     content = {
-            'cycles': cycles,
-            'linux_versions': linux_versions,
-            'generated': date,
+        'cycles': cycles,
+        'linux_versions': linux_versions,
+        'generated': date,
     }
     with open(html_filename, mode="w", encoding="utf-8") as results:
         results.write(html_template.render(content))
