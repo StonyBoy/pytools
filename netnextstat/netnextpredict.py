@@ -101,6 +101,13 @@ class NetNextCycle:
                 f'Closed: {self.day2.strftime("%d-%b-%Y")} to {last.strftime("%d-%b-%Y")}, {self.closed.days} days, '
                 f'{self.version}')
 
+    def dump(self):
+        close = self.day2 - datetime.timedelta(days=1)
+        last = self.day3 - datetime.timedelta(days=1)
+        return (f'{self.__class__.__name__} Open: {self.day1.strftime("%d-%b-%Y")} to {close.strftime("%d-%b-%Y")}, {self.open.days} days, '
+                f'Closed: {self.day2.strftime("%d-%b-%Y")} to {last.strftime("%d-%b-%Y")}, {self.closed.days} days, '
+                f'{self.version}')
+
 
 class PredictedNetNextCycle(NetNextCycle):
     def __init__(self, day1, open_days, closed_days):
@@ -112,15 +119,20 @@ class PredictedNetNextCycle(NetNextCycle):
         self.predicted = True
         self.version = None
 
-    def close_update(self, day2):
+    def close_update(self, day2, today):
         self.day2 = day2
         self.open = day2 - self.day1
         self.day3 = self.day2 + self.closed
-        # print(f'close_update: day1: {self.day1}, day2: {self.day2}, day3: {self.day3}')
+        # Add one more day if net-next is still open today
+        if self.day3 == today:
+            self.closed += datetime.timedelta(days=1)
+            self.day3 = self.day2 + self.closed
+        # print(f'close_update: day1: {self.day1}, day2: {self.day2}, day3: {self.day3} today: {today}')
 
 
 class LinuxTag:
     regex = re.compile(r'Linux (\d+)\.(\d+)')
+
     def __init__(self, date, tag, version):
         self.date = datetime.date(date.year, date.month, date.day)
         self.tag = tag
@@ -212,7 +224,7 @@ def generate_netnext_cycles(history):
     return cycles
 
 
-def predict(cycles, history):
+def predict(cycles, history, today):
     open_days = []
     closed_days = []
     for cycle in cycles[-3:]:
@@ -226,7 +238,7 @@ def predict(cycles, history):
             if idx >= size - 2:
                 cycle = PredictedNetNextCycle(item.date, next_open, next_closed)
                 if idx < size - 1:
-                    cycle.close_update(history[-1].date)
+                    cycle.close_update(history[-1].date, today)
                 cycles.append(cycle)
     for idx in range(0, 2):
         open_date = cycles[-1].day3
@@ -292,6 +304,7 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--outdir', help='Output folder for generated files', type=str, default='.')
     parser.add_argument('-r', '--repo', help='Path to linux git repo with tag information', type=str, default=None)
     parser.add_argument('-s', '--statusonly', help='Just get the lore.kernel.org net-next status', action='store_true')
+    parser.add_argument('-c', '--cyclesonly', help='Show the net next cycles', action='store_true')
     parser.add_argument('-a', '--savestatus', help='Save the lore.kernel.org net-next status', action='store_true')
 
     args = parser.parse_args()
@@ -329,13 +342,19 @@ if __name__ == '__main__':
         tz = pytz.timezone(args.timezone)
     date = datetime.datetime.now(tz)
 
-    cycles = predict(cycles, history)
+    cycles = predict(cycles, history, date.date())
 
     linux_versions = None
     if args.repo:
         linux_versions = get_git_linux_tags(os.path.expanduser(args.repo))
         if linux_versions:
             add_linux_versions(cycles, linux_versions)
+
+    if args.cyclesonly:
+        print('Net Next Cycles')
+        for item in cycles:
+            print(f'    {item.dump()}')
+        sys.exit(0)
 
     if args.generate:
         generate_html(cycles, date, linux_versions, args.outdir)
