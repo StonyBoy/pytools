@@ -95,16 +95,14 @@ class NetNextCycle:
         return self.version is None
 
     def __str__(self):
-        close = self.day2 - datetime.timedelta(days=1)
-        last = self.day3 - datetime.timedelta(days=1)
-        return (f'Open: {self.day1.strftime("%d-%b-%Y")} to {close.strftime("%d-%b-%Y")}, {self.open.days} days, '
-                f'Closed: {self.day2.strftime("%d-%b-%Y")} to {last.strftime("%d-%b-%Y")}, {self.closed.days} days, '
-                f'{self.version}')
+        return self.dump()
 
-    def dump(self):
+    def dump(self, txt=''):
+        if len(txt):
+            txt = self.__class__.__name__
         close = self.day2 - datetime.timedelta(days=1)
         last = self.day3 - datetime.timedelta(days=1)
-        return (f'{self.__class__.__name__} Open: {self.day1.strftime("%d-%b-%Y")} to {close.strftime("%d-%b-%Y")}, {self.open.days} days, '
+        return (f'{txt} Open: {self.day1.strftime("%d-%b-%Y")} to {close.strftime("%d-%b-%Y")}, {self.open.days} days, '
                 f'Closed: {self.day2.strftime("%d-%b-%Y")} to {last.strftime("%d-%b-%Y")}, {self.closed.days} days, '
                 f'{self.version}')
 
@@ -119,15 +117,23 @@ class PredictedNetNextCycle(NetNextCycle):
         self.predicted = True
         self.version = None
 
+    def open_update(self, day2, today):
+        # print(f'open_update: {day2} {today}')
+        # Add one more day if net-next is still open today
+        while self.day2 <= today:
+            self.open += datetime.timedelta(days=1)
+            self.day2 = self.day1 + self.open
+            self.day3 = self.day2 + self.closed
+
     def close_update(self, day2, today):
+        # print(f'close_update: {day2} {today}')
         self.day2 = day2
         self.open = day2 - self.day1
         self.day3 = self.day2 + self.closed
-        # Add one more day if net-next is still open today
+        # Add one more day if net-next is still closed today
         while self.day3 <= today:
             self.closed += datetime.timedelta(days=1)
             self.day3 = self.day2 + self.closed
-        # print(f'close_update: day1: {self.day1}, day2: {self.day2}, day3: {self.day3} today: {today}')
 
 
 class LinuxTag:
@@ -237,7 +243,9 @@ def predict(cycles, history, today):
         if item.state == 'Open':
             if idx >= size - 2:
                 cycle = PredictedNetNextCycle(item.date, next_open, next_closed)
-                if idx < size - 1:
+                if idx == size - 1:
+                    cycle.open_update(history[-1].date, today)
+                elif idx < size - 1:
                     cycle.close_update(history[-1].date, today)
                 cycles.append(cycle)
     for idx in range(0, 2):
@@ -353,7 +361,7 @@ if __name__ == '__main__':
     if args.cyclesonly:
         print('Net Next Cycles')
         for item in cycles:
-            print(f'    {item.dump()}')
+            print(f'    {item.dump("-")}')
         sys.exit(0)
 
     if args.generate:
