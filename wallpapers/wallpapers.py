@@ -4,6 +4,10 @@ Use JPEG photo as wallpaper images.
 
 You can rename image files and convert, size and crop them
 You can also set them as lockscreen or wallpaper
+
+Dependencies:
+
+    pip install Pillow
 '''
 import os
 import os.path
