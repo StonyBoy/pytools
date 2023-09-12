@@ -124,7 +124,7 @@ class PredictedNetNextCycle(NetNextCycle):
         self.open = day2 - self.day1
         self.day3 = self.day2 + self.closed
         # Add one more day if net-next is still open today
-        if self.day3 == today:
+        while self.day3 <= today:
             self.closed += datetime.timedelta(days=1)
             self.day3 = self.day2 + self.closed
         # print(f'close_update: day1: {self.day1}, day2: {self.day2}, day3: {self.day3} today: {today}')
@@ -280,7 +280,7 @@ def add_linux_versions(cycles, linux_versions):
             cycle.set_version(last_tag.version)
 
 
-def generate_html(cycles, date, linux_versions, outputpath):
+def generate_html(cycles, now, linux_versions, outputpath):
     html_filename = os.path.join(os.path.expanduser(outputpath), 'index.html')
     templatepath = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'templates')
     print('templates:', templatepath)
@@ -289,7 +289,7 @@ def generate_html(cycles, date, linux_versions, outputpath):
     content = {
         'cycles': cycles,
         'linux_versions': linux_versions,
-        'generated': date,
+        'generated': now,
     }
     with open(html_filename, mode="w", encoding="utf-8") as results:
         results.write(html_template.render(content))
@@ -340,9 +340,9 @@ if __name__ == '__main__':
     tz = pytz.timezone('Europe/Copenhagen')
     if args.timezone:
         tz = pytz.timezone(args.timezone)
-    date = datetime.datetime.now(tz)
+    now = datetime.datetime.now(tz)
 
-    cycles = predict(cycles, history, date.date())
+    cycles = predict(cycles, history, now.date())
 
     linux_versions = None
     if args.repo:
@@ -357,7 +357,7 @@ if __name__ == '__main__':
         sys.exit(0)
 
     if args.generate:
-        generate_html(cycles, date, linux_versions, args.outdir)
+        generate_html(cycles, now, linux_versions, args.outdir)
     else:
         print('Net Next Cycles Prediction')
         for item in cycles:
