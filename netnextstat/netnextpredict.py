@@ -174,6 +174,7 @@ missing_data = [
     NetNextStateChange('net-next is Closed', '2021-08-28'),
     NetNextStateChange('net-next is Closed', '2021-10-30'),
     NetNextStateChange('net-next is Closed', '2022-01-11'),
+    NetNextStateChange('net-next is Closed', '2023-12-23'),  # Date announced by Jacub Kicinsky on Dec 05 2023
 ]
 
 
