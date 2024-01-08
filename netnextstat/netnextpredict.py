@@ -177,9 +177,18 @@ missing_data = [
     NetNextStateChange('net-next is Closed', '2023-12-23'),  # Date announced by Jacub Kicinsky on Dec 05 2023
 ]
 
+excess_data = [
+    NetNextStateChange('net-next is Open', '2024-01-02'),    # Interim opened
+    NetNextStateChange('net-next is Closed', '2023-12-23'),  # Date announced by Jacub Kicinsky on Dec 05 2023
+]
+
 
 def get_updated_history():
     history = get_netnext_history() + missing_data
+    for idx, event in enumerate(history):
+        for evt in excess_data:
+            if event.date == evt.date:
+                del history[idx]
     return sorted(history)
 
 
