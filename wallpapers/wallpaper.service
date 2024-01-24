@@ -3,6 +3,6 @@ Description=Wallpaper Change service
 
 [Service]
 Type=oneshot
-ExecStart=/home/steen/src/python/devtools/wallpapers/wallpapers.py -x 1920 -y 1200 -p -w -r /opt/wallpapers
+ExecStart=/home/steen/src/python/devtools/wallpapers/wallpapers.py -p -w -r /opt/wallpapers
 ExecStartPost=feh --bg-fill /opt/wallpapers/i3wallpaper.jpg
 

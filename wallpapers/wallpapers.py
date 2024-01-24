@@ -13,26 +13,30 @@ import os
 import os.path
 import argparse
 from PIL import Image
+from PIL import ImageDraw
+from PIL import ImageFont
 import random
 import subprocess
+import socket
+import datetime
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('-i', dest='info', help='Show image information', action='store_true')
-    parser.add_argument('-x', dest='display_width', help='Display Width', type=int, default=1920)
-    parser.add_argument('-y', dest='display_height', help='Display Height', type=int, default=1200)
-    parser.add_argument('-c', dest='crop_percentage', help='Crop from left or top percentage (0-100)',
-                        type=int, default=50)
-    parser.add_argument('-n', dest='rename', help='Rename files with lowercase and no spaces', action='store_true')
-    parser.add_argument('-l', dest='lockfile', help='Create lockscreen.jpg file', action='store_true')
-    parser.add_argument('-w', dest='wallpaper', help='Create wallpaper.jpg file', action='store_true')
-    parser.add_argument('-a', dest='sway', help='Update sway background with wallpaper.jpg file', action='store_true')
-    parser.add_argument('-t', dest='i3', help='Update i3 background with wallpaper.jpg file', action='store_true')
-    parser.add_argument('-s', dest='login', help='Create login_screen.jpg file', action='store_true')
-    parser.add_argument('-r', dest='random', help='Select a random image from the specified path', action='store_true')
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--info', '-i', help='Show image information', action='store_true')
+    parser.add_argument('--display_width', '-x', help='Display Width', type=int, default=2560)
+    parser.add_argument('--display_height', '-y', help='Display Height', type=int, default=1440)
+    parser.add_argument('--crop', '-c', help='Crop from left or top percentage (0-100)', type=int, default=50)
+    parser.add_argument('--rename', '-n', help='Rename files with lowercase and no spaces', action='store_true')
+    parser.add_argument('--lockfile', '-l', help='Create lockscreen.jpg file', action='store_true')
+    parser.add_argument('--wallpaper', '-w', help='Create wallpaper.jpg file', action='store_true')
+    parser.add_argument('--sway', '-a', help='Update sway background with wallpaper.jpg file', action='store_true')
+    parser.add_argument('--i3', '-t', help='Update i3 background with wallpaper.jpg file', action='store_true')
+    parser.add_argument('--login', '-s', help='Create login_screen.jpg file', action='store_true')
+    parser.add_argument('--random', '-r', help='Select a random image from the specified path', action='store_true')
+    parser.add_argument('--system_info', '-z', help='Add text about the system to the final image', action='store_true')
     parser.add_argument('filenames', help='Image file or a path to images', nargs='*', metavar='path')
-    return parser.parse_args()
+    return parser.parse_args(), parser
 
 
 def set_sway_wallpaper():
@@ -58,26 +62,26 @@ def show_fileinfo(fullpath):
         print(fullpath, image.format, "%dx%d" % image.size, image.mode)
 
 
-def scale_to_display(newfullpath, fullpath, displaysize, crop_percentage):
+def scale_to_display(newfullpath, fullpath, displaysize, crop):
     with Image.open(fullpath) as image:
         if image.size[0] / image.size[1] > displaysize[0] / displaysize[1]:
-            print('Crop from left using {}%'.format(crop_percentage))
+            print('Crop from left using {}%'.format(crop))
             # Larger aspect ratio, use fixed height: displayheight
             newsize = int(image.size[0] / image.size[1] * displaysize[1]), displaysize[1]
             newimage = image.resize(newsize)
             # Crop from Left Box: left, upper, right, and lower pixel coordinate.
-            startx = (newsize[0] - displaysize[0]) * crop_percentage // 100
+            startx = (newsize[0] - displaysize[0]) * crop // 100
             box = startx, 0, startx + displaysize[0], displaysize[1]
             print('imagesize {} on display {} resized to {} and crop box {}'
                   .format(image.size, displaysize, newsize, box))
             croppedimage = newimage.crop(box)
             croppedimage.save(newfullpath)
         else:
-            print('Crop from top using {}%'.format(crop_percentage))
+            print('Crop from top using {}%'.format(crop))
             newsize = displaysize[0], int(displaysize[0] / image.size[0] * image.size[1])
             newimage = image.resize(newsize)
             # Crop from Top Box: left, upper, right, and lower pixel coordinate.
-            starty = (newsize[1] - displaysize[1]) * crop_percentage // 100
+            starty = (newsize[1] - displaysize[1]) * crop // 100
             box = 0, starty, displaysize[0], starty + displaysize[1]
             print('imagesize {} on display {} resized to {} and crop box {}'
                   .format(image.size, displaysize, newsize, box))
@@ -91,8 +95,36 @@ def select_random_image(filepath):
     return os.path.join(filepath, images[choice])
 
 
+def draw_text(draw, text, size=100, top=10, left=10, outline=2):
+    shadowcolor = (250, 250, 250)
+    font = ImageFont.truetype('Inconsolata-Regular.ttf', size)
+    # Add an outline
+    draw.text((top - outline, left - outline), text, font=font, fill=shadowcolor)
+    draw.text((top + outline, left - outline), text, font=font, fill=shadowcolor)
+    draw.text((top - outline, left + outline), text, font=font, fill=shadowcolor)
+    draw.text((top + outline, left + outline), text, font=font, fill=shadowcolor)
+    # Text on top
+    draw.text((top, left), text, font=font, fill=(255, 0, 0))
+    return top + size
+
+
+def add_system_info(args, filepath, top=10, left=10):
+    hostname = os.uname().nodename
+    ipv4addr = socket.gethostbyname(hostname)
+    now = datetime.datetime.now().strftime('%d-%b-%Y %H:%M')
+
+    img = Image.open(filepath)
+    draw = ImageDraw.Draw(img)
+    size = 60
+    top += draw_text(draw, f'User: {os.environ["USER"]}', size, left, top)
+    top += draw_text(draw, f'Hostname: {hostname}', size, left, top)
+    top += draw_text(draw, f'IPv4: {ipv4addr}', size, left, top)
+    top += draw_text(draw, f'Updated: {now}', size, left, top)
+    img.save(filepath)
+
+
 if __name__ == '__main__':
-    args = parse_arguments()
+    args, parser = parse_arguments()
 
     if len(args.filenames):
         for filename in args.filenames:
@@ -113,9 +145,12 @@ if __name__ == '__main__':
             else:
                 newname = 'cropped_image.jpg'
             newfullpath = os.path.join(os.path.dirname(fullpath), newname)
-            scale_to_display(newfullpath, fullpath, (args.display_width, args.display_height), args.crop_percentage)
+            scale_to_display(newfullpath, fullpath, (args.display_width, args.display_height), args.crop)
+            add_system_info(args, newfullpath)
             print('Created', newfullpath)
             if args.sway:
                 set_sway_wallpaper()
             elif args.i3:
                 set_i3_wallpaper()
+    else:
+        parser.print_help()
