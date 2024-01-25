@@ -19,6 +19,7 @@ import random
 import subprocess
 import socket
 import datetime
+import re
 
 
 def parse_arguments():
@@ -35,6 +36,7 @@ def parse_arguments():
     parser.add_argument('--login', '-s', help='Create login_screen.jpg file', action='store_true')
     parser.add_argument('--random', '-r', help='Select a random image from the specified path', action='store_true')
     parser.add_argument('--system_info', '-z', help='Add text about the system to the final image', action='store_true')
+    parser.add_argument('--interface', '-f', help='Network interface used for system information', default='wan')
     parser.add_argument('filenames', help='Image file or a path to images', nargs='*', metavar='path')
     return parser.parse_args(), parser
 
@@ -111,17 +113,25 @@ def draw_text(draw, text, size=100, top=10, left=10, outline=2):
     return top + size
 
 
-def add_system_info(args, filepath, top=10, left=10):
-    hostname = os.uname().nodename
-    ipv4addr = socket.gethostbyname(hostname)
+def get_if_ipv4(ifname):
+    cp = subprocess.run(['ip', 'addr', 'show', ifname], capture_output=True)
+    lines = cp.stdout.decode().split('\n')
+    ipv4_regex = re.compile(r'\s+inet\s+(\S+)/\S+')
+    for line in lines:
+        mt = ipv4_regex.match(line)
+        if mt:
+            return mt[1]
+    return socket.gethostbyname(os.uname().nodename)
 
+
+def add_system_info(args, filepath, top=10, left=10):
     now = datetime.date.today().strftime('%d-%b-%Y')
     img = Image.open(filepath)
     draw = ImageDraw.Draw(img)
     size = 60
     top += draw_text(draw, f'User: {os.environ["USER"]}', size, left, top)
-    top += draw_text(draw, f'Hostname: {hostname}', size, left, top)
-    top += draw_text(draw, f'IPv4: {ipv4addr}', size, left, top)
+    top += draw_text(draw, f'Hostname: {os.uname().nodename}', size, left, top)
+    top += draw_text(draw, f'IPv4: {get_if_ipv4(args.interface)}', size, left, top)
     top += draw_text(draw, f'Date: {now}', size, left, top)
     img.save(filepath)
 
