@@ -159,7 +159,8 @@ if __name__ == '__main__':
                 newname = 'cropped_image.jpg'
             newfullpath = os.path.join(os.path.dirname(fullpath), newname)
             scale_to_display(newfullpath, fullpath, (args.display_width, args.display_height), args.crop)
-            add_system_info(args, newfullpath)
+            if args.system_info:
+                add_system_info(args, newfullpath)
             print('Created', newfullpath)
             if args.sway:
                 set_sway_wallpaper()
