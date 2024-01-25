@@ -97,7 +97,10 @@ def select_random_image(filepath):
 
 def draw_text(draw, text, size=100, top=10, left=10, outline=2):
     shadowcolor = (250, 250, 250)
-    font = ImageFont.truetype('Inconsolata-Regular.ttf', size)
+    try:
+        font = ImageFont.truetype('Inconsolata-Regular.ttf', size)
+    except OSError:
+        font = ImageFont.truetype('Inconsolata.otf', size)
     # Add an outline
     draw.text((top - outline, left - outline), text, font=font, fill=shadowcolor)
     draw.text((top + outline, left - outline), text, font=font, fill=shadowcolor)
@@ -111,15 +114,15 @@ def draw_text(draw, text, size=100, top=10, left=10, outline=2):
 def add_system_info(args, filepath, top=10, left=10):
     hostname = os.uname().nodename
     ipv4addr = socket.gethostbyname(hostname)
-    now = datetime.datetime.now().strftime('%d-%b-%Y %H:%M')
 
+    now = datetime.date.today().strftime('%d-%b-%Y')
     img = Image.open(filepath)
     draw = ImageDraw.Draw(img)
     size = 60
     top += draw_text(draw, f'User: {os.environ["USER"]}', size, left, top)
     top += draw_text(draw, f'Hostname: {hostname}', size, left, top)
     top += draw_text(draw, f'IPv4: {ipv4addr}', size, left, top)
-    top += draw_text(draw, f'Updated: {now}', size, left, top)
+    top += draw_text(draw, f'Date: {now}', size, left, top)
     img.save(filepath)
 
 
