@@ -270,10 +270,11 @@ def get_git_linux_tags(repo):
                          '--sort=taggerdate'],
                         capture_output=True)
     if cp.returncode == 0:
+        print(f'run: {" ".join(cp.args)}')
         lines = cp.stdout.decode().split('\n')
         history = []
         # Look for the RC1 tags as they start a new Linux Version
-        regex = re.compile(r'([^;]+)-rc1;([^;]+);([^;]+)-rc1')
+        regex = re.compile(r'([^;]+)-rc1-.*;([^;]+);([^;]+)-rc1')
         for line in lines:
             mt = regex.findall(line)
             if mt:
