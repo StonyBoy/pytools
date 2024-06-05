@@ -19,49 +19,40 @@ import random
 import subprocess
 import socket
 import datetime
+import time
 import re
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--info', '-i', help='Show image information', action='store_true')
-    parser.add_argument('--display_width', '-x', help='Display Width', type=int, default=2560)
-    parser.add_argument('--display_height', '-y', help='Display Height', type=int, default=1440)
-    parser.add_argument('--crop', '-c', help='Crop from left or top percentage (0-100)', type=int, default=50)
-    parser.add_argument('--rename', '-n', help='Rename files with lowercase and no spaces', action='store_true')
-    parser.add_argument('--lockfile', '-l', help='Create lockscreen.jpg file', action='store_true')
-    parser.add_argument('--wallpaper', '-w', help='Create wallpaper.jpg file', action='store_true')
-    parser.add_argument('--sway', '-a', help='Update sway background with wallpaper.jpg file', action='store_true')
-    parser.add_argument('--i3', '-t', help='Update i3 background with wallpaper.jpg file', action='store_true')
-    parser.add_argument('--login', '-s', help='Create login_screen.jpg file', action='store_true')
-    parser.add_argument('--random', '-r', help='Select a random image from the specified path', action='store_true')
-    parser.add_argument('--system_info', '-z', help='Add text about the system to the final image', action='store_true')
-    parser.add_argument('--interface', '-f', help='Network interface used for system information', default='wan')
-    parser.add_argument('filenames', help='Image file or a path to images', nargs='*', metavar='path')
+    parser.add_argument('--interval', help='Refresh image with this interval in secs (run as service)', type=int, default=0)
+    parser.add_argument('--sway', help='Set sway wallpaper to wallpaper.jpg file', action='store_true')
+    parser.add_argument('--i3', help='Set i3 wallpaper to wallpaper.jpg file', action='store_true')
+    parser.add_argument('--crop', help='Crop from left or top percentage (0-100)', type=int, default=50)
+    parser.add_argument('--lockscreen', help='Create lockscreen.jpg file', action='store_true')
+    parser.add_argument('--wallpaper', help='Create wallpaper.jpg file', action='store_true')
+    parser.add_argument('--login', help='Create login_screen.jpg file', action='store_true')
+    parser.add_argument('--info', help='Add text about the system to the final image', action='store_true')
+    parser.add_argument('--network', help='Network interface used for system information', default='wan')
+    parser.add_argument('width', help='Display Width', type=int, default=2560)
+    parser.add_argument('height', help='Display Height', type=int, default=1440)
+    parser.add_argument('path', help='Path to images')
     return parser.parse_args(), parser
 
 
-def set_sway_wallpaper():
-    print('set sway wallpaper')
-    subprocess.run(['swaymsg', 'output * bg /opt/wallpapers/wallpaper.jpg fill'])
-
-
-def set_i3_wallpaper():
-    print('set i3 wallpaper')
-    subprocess.run(['feh', '--bg-fill', '/opt/wallpapers/wallpaper.jpg'])
-
-
-def rename_file(filename):
-    if (filename.endswith('.jpg') or filename.endswith('.JPG')) and not filename.startswith('.'):
-        newname = filename.replace(' ', '-').lower()
-        if newname != filename:
-            print('{} -> {}'.format(filename, newname))
-            os.rename(filename, newname)
-
-
-def show_fileinfo(fullpath):
-    with Image.open(fullpath) as image:
-        print(fullpath, image.format, "%dx%d" % image.size, image.mode)
+def set_wallpaper(args):
+    if args.interval == 0:
+        args.interval = None
+    cmd = []
+    if args.sway:
+        cmd = ['swaybg', '-i' '/opt/wallpapers/wallpaper.jpg']
+    if args.i3:
+        cmd = ['feh', '--bg-fill', '/opt/wallpapers/wallpaper.jpg']
+    try:
+        subprocess.run(cmd, timeout=args.interval)
+    except subprocess.TimeoutExpired:
+        return False
+    return True
 
 
 def scale_to_display(newfullpath, fullpath, displaysize, crop):
@@ -131,25 +122,19 @@ def add_system_info(args, filepath, top=10, left=10):
     size = 60
     top += draw_text(draw, f'User: {os.environ["USER"]}', size, left, top)
     top += draw_text(draw, f'Hostname: {os.uname().nodename}', size, left, top)
-    top += draw_text(draw, f'IPv4: {get_if_ipv4(args.interface)}', size, left, top)
+    top += draw_text(draw, f'IPv4: {get_if_ipv4(args.network)}', size, left, top)
     top += draw_text(draw, f'Date: {now}', size, left, top)
     img.save(filepath)
 
 
 if __name__ == '__main__':
+    done = True
     args, parser = parse_arguments()
 
-    if len(args.filenames):
-        for filename in args.filenames:
-            fullpath = os.path.abspath(filename)
-            if args.info:
-                show_fileinfo(fullpath)
-            elif args.rename:
-                rename_file(fullpath)
-            if args.random:
-                fullpath = select_random_image(fullpath)
-                print('Selected', fullpath)
-            if args.lockfile:
+    if len(args.path):
+        while True:
+            fullpath = select_random_image(os.path.abspath(args.path))
+            if args.lockscreen:
                 newname = 'lockscreen.jpg'
             elif args.wallpaper:
                 newname = 'wallpaper.jpg'
@@ -158,13 +143,18 @@ if __name__ == '__main__':
             else:
                 newname = 'cropped_image.jpg'
             newfullpath = os.path.join(os.path.dirname(fullpath), newname)
-            scale_to_display(newfullpath, fullpath, (args.display_width, args.display_height), args.crop)
-            if args.system_info:
+            scale_to_display(newfullpath, fullpath, (args.width, args.height), args.crop)
+            if args.info:
                 add_system_info(args, newfullpath)
             print('Created', newfullpath)
-            if args.sway:
-                set_sway_wallpaper()
-            elif args.i3:
-                set_i3_wallpaper()
+            if args.wallpaper:
+                if set_wallpaper(args):
+                    break
+            elif args.lockscreen and args.interval > 0:
+                time.sleep(args.interval)
+            elif args.login_wallpaper and args.interval > 0:
+                time.sleep(args.interval)
+            else:
+                break
     else:
         parser.print_help()
