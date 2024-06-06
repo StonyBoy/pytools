@@ -57,6 +57,7 @@ def set_wallpaper(args):
         return False
     if args.sway and args.interval:
         time.sleep(args.interval)
+        return False
     return True
 
 
