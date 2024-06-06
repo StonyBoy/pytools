@@ -27,6 +27,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--interval', help='Refresh image with this interval in secs (run as service)', type=int, default=0)
     parser.add_argument('--sway', help='Set sway wallpaper to wallpaper.jpg file', action='store_true')
+    parser.add_argument('--niri', help='Set niri wallpaper to wallpaper.jpg file', action='store_true')
     parser.add_argument('--i3', help='Set i3 wallpaper to wallpaper.jpg file', action='store_true')
     parser.add_argument('--crop', help='Crop from left or top percentage (0-100)', type=int, default=50)
     parser.add_argument('--lockscreen', help='Create lockscreen.jpg file', action='store_true')
@@ -45,6 +46,8 @@ def set_wallpaper(args):
         args.interval = None
     cmd = []
     if args.sway:
+        cmd = ['swaymsg', 'output * bg /opt/wallpapers/wallpaper.jpg fill']
+    if args.niri:
         cmd = ['swaybg', '-i' '/opt/wallpapers/wallpaper.jpg']
     if args.i3:
         cmd = ['feh', '--bg-fill', '/opt/wallpapers/wallpaper.jpg']
@@ -52,6 +55,8 @@ def set_wallpaper(args):
         subprocess.run(cmd, timeout=args.interval)
     except subprocess.TimeoutExpired:
         return False
+    if args.sway and args.interval:
+        time.sleep(args.interval)
     return True
 
 
@@ -115,7 +120,7 @@ def get_if_ipv4(ifname):
     return socket.gethostbyname(os.uname().nodename)
 
 
-def add_system_info(args, filepath, top=10, left=10):
+def add_system_info(args, filepath, top=16, left=10):
     now = datetime.date.today().strftime('%d-%b-%Y')
     img = Image.open(filepath)
     draw = ImageDraw.Draw(img)
